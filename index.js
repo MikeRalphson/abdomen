@@ -7,7 +7,7 @@ const metaObjectmodel = {
     "optional": {type: "boolean", optional: false}
 };
 const metaStringModel = {
-    "*": "s"
+    "*": "$"
 };
 
 let cache = {};
@@ -71,14 +71,18 @@ function decodeModel(model) {
     return m;
 }
 
-function jsonSchema(model) {
+function jsonSchema(model,openapi) {
     let s = clone(model);
     let required = [];
     for (let property of Object.keys(s)) {
         if (!s[property].optional) required.push(property);
         delete s[property].optional;
-        if (s[property].nullable) s[property].type = [s.property[type],null];
-        delete s[property].nullable;
+        if (!openapi) {
+            if (s[property].nullable) {
+                s[property].type = [s.property[type],null];
+            }
+            delete s[property].nullable;
+        }
     }
     if (required.length) s.required = required;
     return s;
@@ -92,15 +96,18 @@ function fail(result,obj,model,message) {
     return result;
 }
 
-function internal(obj,model,step) {
+function internal(obj,model,step,options) {
     let result = {ok:true,modelStr:model,model:model,obj:obj,step:step,message:'None'};
     model = result.model = decodeModel(model);
     if (Array.isArray(model)) model = model[0]; //
     for (let property of Object.keys(model)) {
         let value = model[property];
-        let p = (property === '*' ? Object.values(obj) : obj[property]);
+        let p = (property === '*' ? Object.values(obj) : (obj === null ? null : obj[property]));
         if (property === '') p = obj
         if ((property !== '[]') && (property !== '*')) p = [p];
+
+        if (property.startsWith('\\')) property = property.replace('\\','');
+
         for (let pi in p) {
             let pp = p[pi];
             let ep = property;
@@ -111,6 +118,9 @@ function internal(obj,model,step) {
             if (!value.optional || (typeof pp !== 'undefined')) {
                 if ((truetype(pp) === 'number') && (value.type === 'integer') && (Math.trunc(pp) == pp)) {
                     // this is ok
+                }
+                else if (value.nullable && (truetype(pp) === 'null')) {
+                    // this also is ok
                 }
                 else if (truetype(pp) !== value.type) {
                     fail(result,obj,model,'Property `'+ep+'` should be type `'+value.type+'` but it is type `'+truetype(pp)+'`');
@@ -123,11 +133,14 @@ function internal(obj,model,step) {
     return result;
 }
 
-function validate(obj,model) {
-    //let result = internal(model,metaStringModel,'model');
-    //if (result.ok) result = internal(obj,model,'object');
-    let result = internal(obj,model,'object');
-    return result;
+function validate(obj,model,options) {
+    if (!options) options = {validateModel:false};
+    if (options.validateModel) {
+        let result = internal(model,metaStringModel,'model',options);
+        if (result.ok) result = internal(obj,model,'object',options);
+        return result;
+    }
+    else return internal(obj,model,'object',options);
 }
 
 module.exports = {
