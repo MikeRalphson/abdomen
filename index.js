@@ -25,7 +25,7 @@ function truetype(o) {
 
 function encodeValue(model) {
     let result = '';
-    if (model.type === 'string') result = 'a';
+    if (model.type === 'string') result = '$';
     if (model.type === 'boolean') result = 'b';
     if (model.type === 'number') result = '#';
     if (model.type === 'integer') result = '0';
@@ -43,7 +43,7 @@ function decodeValue(str,property) {
     }
     let model = {};
     const typeChar = str.length ? str[0] : '!';
-    if (typeChar === 'a') model.type = 'string';
+    if (typeChar === '$') model.type = 'string';
     if (typeChar === 'b') model.type = 'boolean';
     if (typeChar === '#') model.type = 'number';
     if (typeChar === '0') model.type = 'integer';
@@ -60,7 +60,7 @@ function decodeValue(str,property) {
 function decodeModel(model) {
     let m = clone(model);
     if (Array.isArray(m)) {
-        m = [{'':decodeValue(m[0])}];
+        m = [{"":decodeValue("[]"), "[]":decodeValue(m[0])}];
     }
     else if (typeof m === 'string') {
         m = {'':decodeValue(m)};
@@ -95,19 +95,26 @@ function fail(result,obj,model,message) {
 function internal(obj,model,step) {
     let result = {ok:true,modelStr:model,model:model,obj:obj,step:step,message:'None'};
     model = result.model = decodeModel(model);
+    if (Array.isArray(model)) model = model[0]; //
     for (let property of Object.keys(model)) {
         let value = model[property];
-        let p = obj[property];
-        if (property === '') p = obj;
-        if (!value.optional && (typeof p === 'undefined')) {
-            fail(result,obj,model,'Missing property `'+property+'`');
-        }
-        if (!value.optional || (typeof p !== 'undefined')) {
-            if ((truetype(p) === 'number') && (value.type === 'integer') && (Math.trunc(p) == p)) {
-                // this is ok
+        let p = (property === '*' ? Object.values(obj) : obj[property]);
+        if (property === '') p = obj
+        if ((property !== '[]') && (property !== '*')) p = [p];
+        for (let pi in p) {
+            let pp = p[pi];
+            let ep = property;
+            if (property == '[]') ep = pi;
+            if (!value.optional && (typeof pp === 'undefined')) {
+                fail(result,obj,model,'Missing property `'+ep+'`');
             }
-            else if (truetype(p) !== value.type) {
-                fail(result,obj,model,'Property `'+property+'` should be type `'+value.type+'` but it is type `'+truetype(p)+'`');
+            if (!value.optional || (typeof pp !== 'undefined')) {
+                if ((truetype(pp) === 'number') && (value.type === 'integer') && (Math.trunc(pp) == pp)) {
+                    // this is ok
+                }
+                else if (truetype(pp) !== value.type) {
+                    fail(result,obj,model,'Property `'+ep+'` should be type `'+value.type+'` but it is type `'+truetype(pp)+'`');
+                }
             }
         }
 
