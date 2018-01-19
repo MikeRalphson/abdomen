@@ -28,6 +28,7 @@ function encodeValue(model) {
     if (model.type === 'string') result = 'a';
     if (model.type === 'boolean') result = 'b';
     if (model.type === 'number') result = '#';
+    if (model.type === 'integer') result = '0';
     if (model.type === 'null') result = '!';
     if (model.type === 'object') result = '{}';
     if (model.type === 'array') result = '[]';
@@ -38,7 +39,6 @@ function encodeValue(model) {
 function decodeValue(str,property) {
     if (typeof str !== 'string') return str;
     if (cache[str]) {
-        console.log('CACHED',str);
         return cache[str];
     }
     let model = {};
@@ -46,24 +46,28 @@ function decodeValue(str,property) {
     if (typeChar === 'a') model.type = 'string';
     if (typeChar === 'b') model.type = 'boolean';
     if (typeChar === '#') model.type = 'number';
+    if (typeChar === '0') model.type = 'integer';
     if (typeChar === '!') model.type = 'null';
     if (typeChar === '{') model.type = 'object';
     if (typeChar === '[') model.type = 'array';
     model.optional = str.indexOf('?')>=0;
+    model.nullable = str.indexOf('-')>=0;
     model.name = property;
-    console.log('input:',property,':',str);
-    console.log('output:',util.inspect(model,{depth:null}));
-    console.log('compare:',encodeValue(model));
     cache[str] = model;
     return model;
 }
 
 function decodeModel(model) {
     let m = clone(model);
-    for (let property of Object.keys(m)) {
+    if (Array.isArray(m)) {
+        m = [{'':decodeValue(m[0])}];
+    }
+    else if (typeof m === 'string') {
+        m = {'':decodeValue(m)};
+    }
+    else for (let property of Object.keys(m)) {
         m[property] = decodeValue(m[property],property);
     }
-    console.log(util.inspect(m,{depth:null}));
     return m;
 }
 
@@ -73,6 +77,8 @@ function jsonSchema(model) {
     for (let property of Object.keys(s)) {
         if (!s[property].optional) required.push(property);
         delete s[property].optional;
+        if (s[property].nullable) s[property].type = [s.property[type],null];
+        delete s[property].nullable;
     }
     if (required.length) s.required = required;
     return s;
@@ -82,19 +88,27 @@ function fail(result,obj,model,message) {
     result.ok = false;
     result.obj = obj;
     result.model = model;
-    result.message = message;
-    //console.log(util.inspect(result,{depth:null}));
+    result.message = message||'Bug - no message';
     return result;
 }
 
 function internal(obj,model,step) {
-    let result = {ok:true,modelStr:model,model:model,obj:obj,step:step};
+    let result = {ok:true,modelStr:model,model:model,obj:obj,step:step,message:'None'};
     model = result.model = decodeModel(model);
     for (let property of Object.keys(model)) {
         let value = model[property];
-        if (!value.optional && (typeof obj[property] === 'undefined')) fail(result,obj,model,'Missing property `'+property+'`');
-        if (!value.optional || (typeof obj[property] !== 'undefined')) {
-            if (truetype(obj[property]) !== value.type) fail(result,obj,model,'Property `'+property+'` should be type `'+value.type+'` but it is type `'+truetype(obj[property])+'`');
+        let p = obj[property];
+        if (property === '') p = obj;
+        if (!value.optional && (typeof p === 'undefined')) {
+            fail(result,obj,model,'Missing property `'+property+'`');
+        }
+        if (!value.optional || (typeof p !== 'undefined')) {
+            if ((truetype(p) === 'number') && (value.type === 'integer') && (Math.trunc(p) == p)) {
+                // this is ok
+            }
+            else if (truetype(p) !== value.type) {
+                fail(result,obj,model,'Property `'+property+'` should be type `'+value.type+'` but it is type `'+truetype(p)+'`');
+            }
         }
 
         if (!result.ok) return result;
