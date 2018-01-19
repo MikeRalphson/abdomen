@@ -13,7 +13,9 @@ const metaObjectModel = {
     "nullable": "b",
     "min": "0?",
     "max": "0?",
-    "enum": "[]?"
+    "enum": "[]?",
+    "ref": "$?",
+    "children": "{}?"
 };
 
 let cache = {};
@@ -223,11 +225,11 @@ function internal(obj,model,definitions,step,options) {
                 if (!found) fail(result,obj,model,'Property `'+ep+'` does not match any enum value');
             }
 
-            if (result.ok && value.ref) {
-                let target = jptr(definitions,value.ref);
+            if (result.ok && (value.ref || value.children)) {
+                let target = (typeof value.ref === 'string' ? jptr(definitions,value.ref) : value.children);
                 if (target === false) fail(result,obj,model,'Definition not found '+value.ref)
                 else {
-                    result = internal(pp,target,definitions,value.ref,options);
+                    result = internal(pp,target,definitions,value.ref||'children',options);
                 }
             }
 
@@ -242,10 +244,10 @@ function validate(obj,model,definitions,options) {
     if (!definitions) definitions = {};
     if (!options) options = {validateModel:false};
     if (options.validateModel) {
-        let result = internal(model,metaStringModel,definitions,'model',options);
+        let result = internal(model,metaStringModel,{},'model',options);
         //if (result.ok) {
         //    let em = decodeModel(model);
-        //    result = internal(em,metaObjectModel,definitions,'decoded',options);
+        //    result = internal(em,metaObjectModel,{},'decoded',options);
         //}
         if (result.ok) result = internal(obj,model,definitions,'object',options);
         return result;
