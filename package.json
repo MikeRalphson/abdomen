@@ -14,7 +14,9 @@
   "directories": {
     "test": "test"
   },
-  "dependencies": {},
+  "dependencies": {
+    "reftools": "0.0.20"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MikeRalphson/abdomen.git"

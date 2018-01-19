@@ -2,7 +2,7 @@ const assert = require('assert');
 const util = require('util');
 const abdomen = require('../index.js');
 
-// string, boolean, number, integer, array, object, null
+// string, boolean, number, integer, array, object, null and variable
 
 const primitives = [
     { desc: "string is string", obj: "hello", model: "$", ok: true },
@@ -75,7 +75,19 @@ const objects = [
     { desc: "object all strings, 0", obj: {}, model: { "*": "$" }, ok: true },
     { desc: "object all strings, 1", obj: { "hello": "sailor" }, model: { "*": "$" }, ok: true },
     { desc: "object all strings, 2", obj: { "hello": "sailor", "goodbye": "dolly" }, model: { "*": "$" }, ok: true },
-    { desc: "object all strings, mixed", obj: { "hello": "sailor", "goodbye": true }, model: { "*": "$" }, ok: false }
+    { desc: "object all strings, mixed", obj: { "hello": "sailor", "goodbye": true }, model: { "*": "$" }, ok: false },
+    { desc: "nested object, objects", obj: { a: {}, b: {} }, model: { "*": "{}" }, ok: true },
+    { desc: "nested object, not objects", obj: { a: 1, b: false }, model: { "*": "{}" }, ok: false },
+    { desc: "nested object, arrays", obj: { a: [], b: [] }, model: { "*": "[]" }, ok: true },
+    { desc: "nested object, arrays, specific", obj: { a: [], b: [] }, model: { "a": "[]", "b": "[]" }, ok: true },
+    { desc: "nested object, arrays, mixed", obj: { a: [], b: "hello" }, model: { "a": "[]", "b": "$" }, ok: true },
+    { desc: "nested object, deeper", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{}" }, ok: true },
+    { desc: "nested object, deeper, typed", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{\"c\":\"$\"}" }, ok: true },
+    { desc: "nested object, missing ref", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: false },
+    { desc: "nested object, ref", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: true, defs: { defs: { "inner": { "c": "$" } } } },
+    { desc: "nested object, ref mismatch", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: false, defs: { defs: { "inner": { "c": "0" } } } },
+    { desc: "nested object, ref deeper", obj: { a: [], b: { c: { d: "hello" } } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: true, defs: { defs: { "inner": { "c": "{(#/defs/deeper)}" }, "deeper": { "d": "$" } } } },
+    { desc: "nested object, ref deeper mismatch", obj: { a: [], b: { c: { d: true } } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: false, defs: { defs: { "inner": { "c": "{(#/defs/deeper)}" }, "deeper": { "d": "$" } } } }
 ];
 
 const arrays = [
@@ -91,7 +103,13 @@ const arrays = [
     { desc: "array with true", obj: [true], model: [ "b" ], ok: true },
     { desc: "array with false", obj: [false], model: [ "b" ], ok: true },
     { desc: "array of booleans", obj: [true,false], model: [ "b" ], ok: true },
-    { desc: "empty array matches boolean", obj: [], model: [ "b" ], ok: true }
+    { desc: "array of arrays", obj: [[],[]], model: [ "[]" ], ok: true },
+    { desc: "empty array matches boolean", obj: [], model: [ "b" ], ok: true },
+    { desc: "empty array matches variable", obj: [], model: [ "*" ], ok: true },
+    { desc: "nested array, missing ref", obj: [ { a: "hello" }, { b: "goodbye" } ], model: [ "[(#/defs/inner)]" ], ok: false },
+    { desc: "nested array 1, ref", obj: [ { a: "hello" } ], model: [ "[(#/defs/inner)]" ], ok: true, skip:true, defs: { defs: { "inner": { "*": "{}" } } } },
+    { desc: "nested array, ref", obj: [ { a: "hello" }, { b: "hello" } ], model: [ "[(#/defs/inner)]" ], ok: true, skip: true, defs: { defs: { "inner": { "*": "{}" } } } },
+    { desc: "nested object, ref mismatch", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: false, defs: { defs: { "inner": { "c": "0" } } } }
 ];
 
 const minmax = [
@@ -137,6 +155,7 @@ describe('primitives',function(){
     for (let f of primitives) {
         it(f.desc,function(){
             let result = abdomen.validate(f.obj,f.model);
+            if (f.skip) this.skip();
             assert(f.ok ? result.ok : !result.ok, result.message);
         });
     }
@@ -145,7 +164,8 @@ describe('primitives',function(){
 describe('objects',function(){
     for (let f of objects) {
         it(f.desc,function(){
-            let result = abdomen.validate(f.obj,f.model);
+            let result = abdomen.validate(f.obj,f.model,f.defs);
+            if (f.skip) this.skip();
             assert(f.ok ? result.ok : !result.ok, result.message);
         });
     }
@@ -154,7 +174,8 @@ describe('objects',function(){
 describe('arrays',function(){
     for (let f of arrays) {
         it(f.desc,function(){
-            let result = abdomen.validate(f.obj,f.model);
+            let result = abdomen.validate(f.obj,f.model,f.defs);
+            if (f.skip) this.skip();
             assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
         });
     }
@@ -164,6 +185,7 @@ describe('minmax',function(){
     for (let f of minmax) {
         it(f.desc,function(){
             let result = abdomen.validate(f.obj,f.model);
+            if (f.skip) this.skip();
             assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
         });
     }
@@ -173,6 +195,7 @@ describe('enums',function(){
     for (let f of enums) {
         it(f.desc,function(){
             let result = abdomen.validate(f.obj,f.model);
+            if (f.skip) this.skip();
             assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
         });
     }

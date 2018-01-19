@@ -1,6 +1,7 @@
 'use strict';
 
 const util = require('util');
+const jptr = require('reftools/lib/jptr.js').jptr;
 
 const metaStringModel = {
     "*": "$"
@@ -9,7 +10,10 @@ const metaObjectModel = {
     "type": "$",
     "name": "$-",
     "optional": "b",
-    "nullable": "b"
+    "nullable": "b",
+    "min": "0?",
+    "max": "0?",
+    "enum": "[]?"
 };
 
 let cache = {};
@@ -30,6 +34,12 @@ function chomp(str,index,charset) {
     while ((charset.indexOf(str.substr(index+length,1))>=0) && ((index+length)<=str.length)) length++;
     return str.substr(index,length);
 }
+
+/*function until(str,index,stop) {
+    let length = 0;
+    while ((str[index+length] !== stop) && ((index.length)<=str.length)) length++;
+    return str.substr(index,length);
+}*/
 
 function encodeValue(model) {
     let result = '';
@@ -67,7 +77,7 @@ function decodeValue(str,property) {
     model.nullable = str.indexOf('-')>=0;
     // patterns, refs, oneOf, allOf, anyOf etc
     let minPos = str.indexOf('>');
-    if (minPos>=0) {
+    if (minPos >= 0) {
         let min = chomp(str,minPos+1,'0123456789'+(model.type === 'number' ? '.' : ''));
         if (min) {
             str = str.replace('>'+min,'');
@@ -75,7 +85,7 @@ function decodeValue(str,property) {
         }
     }
     let maxPos = str.indexOf('<');
-    if (maxPos>=0) {
+    if (maxPos >= 0) {
         let max = chomp(str,maxPos+1,'0123456789'+(model.type === 'number' ? '.' : ''));
         if (max) {
             str = str.replace('<'+max,'');
@@ -83,10 +93,16 @@ function decodeValue(str,property) {
         }
     }
     let enumPos = str.indexOf('=[');
-    if (enumPos>=0) {
+    if (enumPos >= 0) {
         let enums = str.substr(enumPos+1).split(']=')[0];
         str = str.replace('=['+enums+']=','');
         model.enum = JSON.parse(enums+']');
+    }
+    let refPos = str.indexOf('(');
+    if (refPos >= 0) {
+        let ref = str.substr(refPos+1).split(')')[0];
+        str = str.replace('('+ref+')','');
+        model.ref = ref;
     }
     cache[str] = model;
     return model;
@@ -136,7 +152,7 @@ function fail(result,obj,model,message) {
     return result;
 }
 
-function internal(obj,model,step,options) {
+function internal(obj,model,definitions,step,options) {
     let result = {ok:true,modelStr:model,model:model,obj:obj,step:step,message:'None'};
     model = result.model = decodeModel(model);
     if (Array.isArray(model)) model = model[0];
@@ -207,6 +223,14 @@ function internal(obj,model,step,options) {
                 if (!found) fail(result,obj,model,'Property `'+ep+'` does not match any enum value');
             }
 
+            if (result.ok && value.ref) {
+                let target = jptr(definitions,value.ref);
+                if (target === false) fail(result,obj,model,'Definition not found '+value.ref)
+                else {
+                    result = internal(pp,target,definitions,options);
+                }
+            }
+
         }
 
         if (!result.ok) return result;
@@ -214,18 +238,19 @@ function internal(obj,model,step,options) {
     return result;
 }
 
-function validate(obj,model,options) {
+function validate(obj,model,definitions,options) {
+    if (!definitions) definitions = {};
     if (!options) options = {validateModel:false};
     if (options.validateModel) {
-        let result = internal(model,metaStringModel,'model',options);
+        let result = internal(model,metaStringModel,definitions,'model',options);
         //if (result.ok) {
         //    let em = decodeModel(model);
-        //    result = internal(em,metaObjectModel,'decoded',options);
+        //    result = internal(em,metaObjectModel,definitions,'decoded',options);
         //}
-        if (result.ok) result = internal(obj,model,'object',options);
+        if (result.ok) result = internal(obj,model,definitions,'object',options);
         return result;
     }
-    else return internal(obj,model,'object',options);
+    else return internal(obj,model,definitions,'object',options);
 }
 
 module.exports = {
