@@ -10,5 +10,17 @@
   "license": "MIT",
   "devDependencies": {
     "mocha": "^5.0.0"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikeRalphson/abdomen.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MikeRalphson/abdomen/issues"
+  },
+  "homepage": "https://github.com/MikeRalphson/abdomen#readme"
 }
