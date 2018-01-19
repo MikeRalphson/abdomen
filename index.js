@@ -104,7 +104,7 @@ function decodeValue(str,property) {
         str = str.replace('('+ref+')','');
         model.ref = ref;
     }
-    cache[str] = model;
+    if (refPos < 0) cache[str] = model;
     return model;
 }
 
@@ -227,7 +227,7 @@ function internal(obj,model,definitions,step,options) {
                 let target = jptr(definitions,value.ref);
                 if (target === false) fail(result,obj,model,'Definition not found '+value.ref)
                 else {
-                    result = internal(pp,target,definitions,options);
+                    result = internal(pp,target,definitions,value.ref,options);
                 }
             }
 

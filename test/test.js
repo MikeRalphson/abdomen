@@ -107,9 +107,9 @@ const arrays = [
     { desc: "empty array matches boolean", obj: [], model: [ "b" ], ok: true },
     { desc: "empty array matches variable", obj: [], model: [ "*" ], ok: true },
     { desc: "nested array, missing ref", obj: [ { a: "hello" }, { b: "goodbye" } ], model: [ "[(#/defs/inner)]" ], ok: false },
-    { desc: "nested array 1, ref", obj: [ { a: "hello" } ], model: [ "[(#/defs/inner)]" ], ok: true, skip:true, defs: { defs: { "inner": { "*": "{}" } } } },
-    { desc: "nested array, ref", obj: [ { a: "hello" }, { b: "hello" } ], model: [ "[(#/defs/inner)]" ], ok: true, skip: true, defs: { defs: { "inner": { "*": "{}" } } } },
-    { desc: "nested object, ref mismatch", obj: { a: [], b: { c: "hello" } }, model: { "a": "[]", "b": "{(#/defs/inner)}" }, ok: false, defs: { defs: { "inner": { "c": "0" } } } }
+    { desc: "nested array 1, ref", obj: [ { a: "hello" } ], model: [ "{(#/defs/inner)}" ], ok: true, defs: { defs: { "inner": { "a": "$" } } } },
+    { desc: "nested array, ref", obj: [ { a: "hello" }, { b: "hello" } ], model: [ "{(#/defs/inner)}" ], ok: true, defs: { defs: { "inner": { "*": "$" } } } },
+    { desc: "nested array, ref mismatch", obj: [ [], { c: "hello" } ], model: [ "[]", "{(#/defs/inner)}" ], ok: false, defs: { defs: { "inner": { "c": "0" } } } }
 ];
 
 const minmax = [
