@@ -76,6 +76,12 @@ const objects = [
     { desc: "object all strings, 1", obj: { "hello": "sailor" }, model: { "*": "$" }, ok: true },
     { desc: "object all strings, 2", obj: { "hello": "sailor", "goodbye": "dolly" }, model: { "*": "$" }, ok: true },
     { desc: "object all strings, mixed", obj: { "hello": "sailor", "goodbye": true }, model: { "*": "$" }, ok: false },
+    { desc: "minimum properties, less", obj: { a: "hello" }, model: "{}>2", ok: false },
+    { desc: "minimum properties, same", obj: { a: "hello", b: "sailor" }, model: "{}>2", ok: false },
+    { desc: "minimum properties, more", obj: { a: "hello", b: "sailor", c: "wahay" }, model: "{}>2", ok: true },
+    { desc: "maximum properties, less", obj: { a: "hello" }, model: "{}<2", ok: true },
+    { desc: "maximum properties, same", obj: { a: "hello", b: "sailor" }, model: "{}<2", ok: false},
+    { desc: "maximum properties, more", obj: { a: "hello", b: "sailor", c: "wahay" }, model: "{}<2", ok: false },
     { desc: "nested object, objects", obj: { a: {}, b: {} }, model: { "*": "{}" }, ok: true },
     { desc: "nested object, not objects", obj: { a: 1, b: false }, model: { "*": "{}" }, ok: false },
     { desc: "nested object, arrays", obj: { a: [], b: [] }, model: { "*": "[]" }, ok: true },
@@ -168,7 +174,7 @@ describe('objects',function(){
         it(f.desc,function(){
             let result = abdomen.validate(f.obj,f.model,f.defs);
             if (f.skip) this.skip();
-            assert(f.ok ? result.ok : !result.ok, result.message);
+            assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
         });
     }
 });

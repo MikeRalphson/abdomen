@@ -63,6 +63,7 @@ function decodeValue(str,property) {
     if (cache[str]) {
         return cache[str];
     }
+    let orgStr = str;
     let model = {};
     model.name = property;
     const typeChar = str.length ? str[0] : '~';
@@ -106,7 +107,7 @@ function decodeValue(str,property) {
         str = str.replace('('+ref+')','');
         model.ref = ref;
     }
-    if (refPos < 0) cache[str] = model;
+    cache[orgStr] = model;
     return model;
 }
 
@@ -199,6 +200,19 @@ function internal(obj,model,definitions,step,options) {
                 if (typeof value.max !== 'undefined') {
                     if (pp.length>=value.max) {
                         fail(result,obj,model,'Property `'+ep+'` must have maximum length '+value.max);
+                    }
+                }
+            }
+
+            if (result.ok && (value.type === 'object')) {
+                if (typeof value.min !== 'undefined') {
+                    if (Object.keys(pp).length<=value.min) {
+                        fail(result,obj,model,'Property `'+ep+'` must have minimum properties '+value.min);
+                    }
+                }
+                if (typeof value.max !== 'undefined') {
+                    if (Object.keys(pp).length>=value.max) {
+                        fail(result,obj,model,'Property `'+ep+'` must have maximum properties '+value.max);
                     }
                 }
             }
