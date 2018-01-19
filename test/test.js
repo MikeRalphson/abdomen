@@ -7,15 +7,18 @@ const abdomen = require('../index.js');
 const primitives = [
     { desc: "string is string", obj: "hello", model: "$", ok: true },
     { desc: "empty string is string", obj: "", model: "$", ok: true },
+    { desc: "string matches any", obj: "hello", model: "*", ok: true },
     { desc: "string not boolean", obj: "hello", model: "b", ok: false },
     { desc: "string not number", obj: "hello", model: "#", ok: false },
     { desc: "string not integer", obj: "hello", model: "0", ok: false },
     { desc: "string not array", obj: "hello", model: "[]", ok: false },
     { desc: "string not object", obj: "hello", model: "{}", ok: false },
     { desc: "string not null", obj: "hello", model: "!", ok: false },
+    { desc: "empty string not null", obj: "", model: "!", ok: false },
     { desc: "string not null, literally", obj: "null", model: "!", ok: false },
     { desc: "true is boolean", obj: true, model: "b", ok: true },
     { desc: "false is boolean", obj: false, model: "b", ok: true },
+    { desc: "boolean matches any", obj: true, model: "*", ok: true },
     { desc: "boolean not string", obj: true, model: "$", ok: false },
     { desc: "boolean not number", obj: true, model: "#", ok: false },
     { desc: "boolean not integer", obj: true, model: "0", ok: false },
@@ -29,20 +32,23 @@ const primitives = [
     { desc: "1 is number", obj: 1, model: "#", ok: true },
     { desc: "1.0 is number", obj: 1.0, model: "#", ok: true },
     { desc: "1.1 is number", obj: 1.1, model: "#", ok: true },
+    { desc: "number matches any", obj: 0, model: "*", ok: true },
     { desc: "number not string", obj: 0, model: "$", ok: false },
     { desc: "1.1 not integer", obj: 1.1, model: "0", ok: false },
     { desc: "number not array", obj: 0, model: "[]", ok: false },
     { desc: "number not object", obj: 0, model: "{}", ok: false },
     { desc: "number not null", obj: 0, model: "!", ok: false },
     { desc: "zero is integer", obj: 0, model: "0", ok: true },
+    { desc: "integer matches any", obj: 0, model: "*", ok: true },
     { desc: "integer not string", obj: 0, model: "$", ok: false },
     { desc: "integer not boolean", obj: 0, model: "b", ok: false },
     { desc: "integer is number", obj: 0, model: "#", ok: true },
     { desc: "integer not array", obj: 0, model: "[]", ok: false },
     { desc: "integer not object", obj: 0, model: "{}", ok: false },
     { desc: "integer not null", obj: 0, model: "!", ok: false },
-    { desc: "empty array is array", obj: [], model: "[]", ok: true },
     { desc: "array is array", obj: [0], model: "[]", ok: true },
+    { desc: "empty array is array", obj: [], model: "[]", ok: true },
+    { desc: "array matches any", obj: [], model: "*", ok: true },
     { desc: "array not string", obj: [], model: "$", ok: false },
     { desc: "array not boolean", obj: [], model: "b", ok: false },
     { desc: "array not number", obj: [], model: "#", ok: false },
@@ -51,6 +57,7 @@ const primitives = [
     { desc: "array not null", obj: [], model: "!", ok: false },
     { desc: "empty object is object", obj: {}, model: "{}", ok: true },
     { desc: "object is object", obj: {"p":0}, model: "{}", ok: true },
+    { desc: "object matches any", obj: {"p":0}, model: "*", ok: true },
     { desc: "object not string", obj: {}, model: "$", ok: false },
     { desc: "object not boolean", obj: {}, model: "b", ok: false },
     { desc: "object not number", obj: {}, model: "#", ok: false },
@@ -73,11 +80,57 @@ const objects = [
 
 const arrays = [
     { desc: "array with string", obj: ["hello"], model: [ "$" ], ok: true },
+    { desc: "array with variable", obj: ["hello"], model: [ "*" ], ok: true },
+    { desc: "array with string not booleans", obj: ["hello"], model: [ "b" ], ok: false },
+    { desc: "array with string not numbers", obj: ["hello"], model: [ "#" ], ok: false },
+    { desc: "array with string not integers", obj: ["hello"], model: [ "0" ], ok: false },
+    { desc: "array with string not arrays", obj: ["hello"], model: [ "[]" ], ok: false },
+    { desc: "array with string not objects", obj: ["hello"], model: [ "{}" ], ok: false },
     { desc: "array of strings", obj: ["hello","goodbye"], model: [ "$" ], ok: true },
+    { desc: "empty array matches string", obj: [], model: [ "$" ], ok: true },
     { desc: "array with true", obj: [true], model: [ "b" ], ok: true },
     { desc: "array with false", obj: [false], model: [ "b" ], ok: true },
     { desc: "array of booleans", obj: [true,false], model: [ "b" ], ok: true },
-    { desc: "array of strings", obj: ["hello","goodbye"], model: [ "$" ], ok: true },
+    { desc: "empty array matches boolean", obj: [], model: [ "b" ], ok: true }
+];
+
+const minmax = [
+    { desc: "string with min", obj: "hello", model: "$>0", ok: true },
+    { desc: "empty string with min", obj: "", model: "$>0", ok: false },
+    { desc: "string with min, same", obj: "hello", model: "$>5", ok: false },
+    { desc: "string with min, less", obj: "hello", model: "$>6", ok: false },
+    { desc: "string with max", obj: "hello", model: "$<6", ok: true },
+    { desc: "empty string with max", obj: "", model: "$<1", ok: true },
+    { desc: "string with max, under", obj: "hello", model: "$<6", ok: true },
+    { desc: "string with max, same", obj: "hello", model: "$<5", ok: false },
+    { desc: "string with max, more", obj: "hello sailor", model: "$<6", ok: false },
+    { desc: "integer with min, more", obj: 1, model: "0>0", ok: true },
+    { desc: "integer with min, same", obj: 1, model: "0>1", ok: false },
+    { desc: "integer with min, less", obj: 1, model: "0>2", ok: false },
+    { desc: "integer with max, less", obj: 0, model: "0<1", ok: true },
+    { desc: "integer with max, same", obj: 1, model: "0<1", ok: false },
+    { desc: "integer with max, more", obj: 2, model: "0<1", ok: false },
+    { desc: "number with min, more", obj: 1.0, model: "#>0", ok: true },
+    { desc: "number with min, same", obj: 1.0, model: "#>1.0", ok: false },
+    { desc: "number with min, less", obj: 1.0, model: "#>1.1", ok: false },
+    { desc: "number with max, less", obj: 0.4, model: "#<0.5", ok: true },
+    { desc: "number with max, same", obj: 2.3, model: "#<2.3", ok: false },
+    { desc: "number with max, more", obj: 2.4, model: "#<2.4", ok: false },
+    { desc: "array with min, more", obj: ["hello"], model: "[]>0", ok: true },
+    { desc: "array with min, same", obj: [0], model: "[]>1", ok: false },
+    { desc: "array with min, less", obj: [false], model: "[]>1", ok: false },
+    { desc: "array with max, less", obj: [], model: "[]<1", ok: true },
+    { desc: "array with max, same", obj: ["hello","sailor"], model: "[]<2", ok: false },
+    { desc: "array with max, more", obj: [true,false], model: "[]<1", ok: false }
+];
+
+const enums = [
+    { desc: "string with empty enums", obj: "hello", model: "$=[]=", ok: true },
+    { desc: "string with enums, match", obj: "hello", model: '$=["hello"]=', ok: true },
+    { desc: "string with enums, missing", obj: "hello", model: "b=[\"goodbye\",\"seeya\"]=", ok: false },
+    { desc: "boolean with empty enums", obj: true, model: "b=[]=", ok: true },
+    { desc: "boolean with enums, match", obj: true, model: 'b=[true,false]=', ok: true },
+    { desc: "boolean with enums, missing", obj: false, model: "b=[true]=", ok: false }
 ];
 
 describe('primitives',function(){
@@ -100,6 +153,24 @@ describe('objects',function(){
 
 describe('arrays',function(){
     for (let f of arrays) {
+        it(f.desc,function(){
+            let result = abdomen.validate(f.obj,f.model);
+            assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
+        });
+    }
+});
+
+describe('minmax',function(){
+    for (let f of minmax) {
+        it(f.desc,function(){
+            let result = abdomen.validate(f.obj,f.model);
+            assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
+        });
+    }
+});
+
+describe('enums',function(){
+    for (let f of enums) {
         it(f.desc,function(){
             let result = abdomen.validate(f.obj,f.model);
             assert(f.ok ? result.ok : !result.ok, util.inspect(result,{depth:null}));
