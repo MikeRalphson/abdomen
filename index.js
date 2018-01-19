@@ -157,7 +157,12 @@ function fail(result,obj,model,message) {
 
 function internal(obj,model,definitions,step,options) {
     let result = {ok:true,modelStr:model,model:model,obj:obj,step:step,message:'None'};
-    model = result.model = decodeModel(model);
+    if (options.raw) {
+        model = result.model = { '': model };
+    }
+    else {
+        model = result.model = decodeModel(model);
+    }
     if (Array.isArray(model)) model = model[0];
     for (let property of Object.keys(model)) {
         let value = model[property];
